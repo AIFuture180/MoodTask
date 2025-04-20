@@ -1269,21 +1269,40 @@
                     audio = null;
                 }
                 const audioUrl = sounds[soundKey];
+                console.log(`Attempting to load audio: ${audioUrl}`);
+
+                // Create a new Audio object
                 audio = new Audio(audioUrl);
                 audio.loop = true;
                 audio.volume = volumeSlider.value;
 
-                // Error handling for audio loading
-                audio.onerror = () => {
+                // Enhanced error handling
+                audio.onerror = (err) => {
+                    console.error(`Error loading audio file ${audioUrl}:`, err);
+                    console.log(`Audio error code: ${audio.error ? audio.error.code : 'Unknown'}`);
+                    console.log(`Audio error message: ${audio.error ? audio.error.message : 'Unknown error'}`);
                     alert(`Failed to load audio for ${select.options[select.selectedIndex].text}. Please check the audio file or try a different sound. File: ${audioUrl}`);
+
+                    // Fallback: Try loading a different sound
+                    const fallbackSound = soundKey === 'waves' ? 'nature' : 'waves';
+                    console.log(`Falling back to ${fallbackSound} sound.`);
+                    select.value = fallbackSound;
+                    loadAudio(fallbackSound);
                 };
 
+                // Check if the audio can be loaded
                 audio.oncanplaythrough = () => {
+                    console.log(`Audio ${audioUrl} loaded successfully.`);
                     audio.play().catch(err => {
-                        console.error('Playback error:', err);
-                        alert('Error playing the audio. Please try again or select a different sound.');
+                        console.error(`Playback error for ${audioUrl}:`, err);
+                        alert(`Error playing the audio for ${select.options[select.selectedIndex].text}. Please try again or select a different sound.`);
                     });
                     playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                };
+
+                // Log when the audio starts loading
+                audio.onloadstart = () => {
+                    console.log(`Started loading audio: ${audioUrl}`);
                 };
             }
 
