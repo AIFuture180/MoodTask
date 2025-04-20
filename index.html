@@ -1256,9 +1256,9 @@
             const affirmation = document.querySelector('#soundscape-popup .affirmation');
 
             const sounds = {
-                nature: 'https://cdn.pixabay.com/audio/2023/10/10/audio_1f7e8f6e6a.mp3', // Forest Sounds
-                rain: 'https://cdn.pixabay.com/audio/2023/10/10/audio_5b5f7e7e7b.mp3',   // Gentle Rain
-                waves: 'https://cdn.pixabay.com/audio/2023/10/10/audio_3f2e7e6e6c.mp3'   // Ocean Waves
+                nature: 'Forest_Sounds.mp3',
+                rain: 'Light_Rain.mp3',
+                waves: 'Ocean_Waves.mp3'
             };
 
             affirmation.style.display = 'none';
@@ -1275,7 +1275,7 @@
 
                 // Error handling for audio loading
                 audio.onerror = () => {
-                    alert(`Failed to load audio for ${select.options[select.selectedIndex].text}. Please check the audio URL or try a different sound. URL: ${audioUrl}`);
+                    alert(`Failed to load audio for ${select.options[select.selectedIndex].text}. Please check the audio file or try a different sound. File: ${audioUrl}`);
                 };
 
                 audio.oncanplaythrough = () => {
