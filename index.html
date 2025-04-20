@@ -739,10 +739,11 @@
             <h4>Soundscape</h4>
             <p>Relax with a calming soundscape</p>
             <select id="soundscape-select" class="sound-select">
-                <option value="cello">Classical Cello</option>
+                <option value="lightrain">Light Rain</option>
                 <option value="chinese">Chinese Music</option>
                 <option value="forest">Forest Sounds</option>
                 <option value="waves">Ocean Waves</option>
+                <option value="temple">Temple Garden</option>
             </select>
             <div class="audio-controls">
                 <button id="play-btn" class="audio-btn"><i class="fas fa-play"></i></button>
@@ -1259,10 +1260,11 @@
             const errorMessage = document.getElementById('soundscape-error');
 
             const sounds = {
-                cello: 'Bach Cello Suite No. 1, G Major, Prelude - Coo.mp3',
+                lightrain: 'Light Rain.mp3',
                 chinese: 'Chinese music.mp3',
                 forest: 'Spring Day Forest.mp3',
-                waves: 'Waves Crashing on Rocky Beach.mp3'
+                waves: 'Waves Crashing on Rocky Beach.mp3',
+                temple: 'In the Temple Garden - Aaron Kenny.mp3'
             };
 
             const soundKeys = Object.keys(sounds);
@@ -1273,7 +1275,7 @@
 
             // Update the dropdown to only show available sounds
             function updateSoundSelect() {
-                select.innerHTML = availableSounds.map(key => `<option value="${key}">${key === 'cello' ? 'Classical Cello' : key === 'chinese' ? 'Chinese Music' : key === 'forest' ? 'Forest Sounds' : 'Ocean Waves'}</option>`).join('');
+                select.innerHTML = availableSounds.map(key => `<option value="${key}">${key === 'lightrain' ? 'Light Rain' : key === 'chinese' ? 'Chinese Music' : key === 'forest' ? 'Forest Sounds' : key === 'waves' ? 'Ocean Waves' : 'Temple Garden'}</option>`).join('');
                 if (availableSounds.length === 0) {
                     select.disabled = true;
                     playBtn.disabled = true;
