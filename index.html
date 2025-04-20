@@ -128,9 +128,15 @@
         .activities-header {
             font-size: 1.5em;
             color: #2C3E50;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
             text-align: center;
             font-weight: 600;
+        }
+        .user-mood {
+            font-size: 0.9em;
+            color: #555;
+            text-align: center;
+            margin-bottom: 20px;
         }
         .activity-cards {
             margin: 0 auto;
@@ -636,6 +642,7 @@
             </div>
             <div id="activities-section">
                 <div class="activities-header"></div>
+                <div class="user-mood"></div>
                 <div class="activity-cards"></div>
             </div>
         </div>
@@ -751,6 +758,7 @@
             </div>
             <p class="affirmation" style="display: none;">Thank you for taking time to relax.</p>
             <p id="soundscape-error" style="color: red; display: none;">Unable to load any sounds. Please try again later.</p>
+            <p id="soundscape-specific-error" style="color: red; display: none;"></p>
             <button class="close-button" onclick="closePopup('soundscape')"><i class="fas fa-times"></i></button>
         </div>
     </div>
@@ -1107,19 +1115,21 @@
             const moodText = document.getElementById('mood-text');
             const activitiesSection = document.getElementById('activities-section');
             const activitiesHeader = activitiesSection.querySelector('.activities-header');
+            const userMoodDisplay = activitiesSection.querySelector('.user-mood');
             const activityCards = activitiesSection.querySelector('.activity-cards');
             const toolsContainer = document.getElementById('tools-container');
 
-            let moodInput = moodText.value.trim().toLowerCase();
+            let moodInput = moodText.value.trim();
             if (!moodInput) {
-                alert('Please enter a mood.');
-                return;
+                // If no mood is entered, default to a generic mood (e.g., "happy")
+                moodInput = "happy";
             }
+            const moodInputLower = moodInput.toLowerCase();
 
-            let matchedMood = Object.keys(moodTasks).find(mood => mood === moodInput);
+            let matchedMood = Object.keys(moodTasks).find(mood => mood === moodInputLower);
             if (!matchedMood) {
                 for (let mood in moodSynonyms) {
-                    if (moodSynonyms[mood].includes(moodInput)) {
+                    if (moodSynonyms[mood].includes(moodInputLower)) {
                         matchedMood = mood;
                         break;
                     }
@@ -1130,45 +1140,41 @@
                 let minDistance = Infinity;
                 let closestMood = null;
                 for (let mood in moodTasks) {
-                    const distance = levenshtein(mood, moodInput);
+                    const distance = levenshtein(mood, moodInputLower);
                     if (distance < minDistance) {
                         minDistance = distance;
                         closestMood = mood;
                     }
                     for (let synonym of moodSynonyms[mood]) {
-                        const dist = levenshtein(synonym, moodInput);
+                        const dist = levenshtein(synonym, moodInputLower);
                         if (dist < minDistance) {
                             minDistance = dist;
                             closestMood = mood;
                         }
                     }
                 }
-                if (minDistance <= 3) {
-                    matchedMood = closestMood;
-                }
+                matchedMood = closestMood || "happy"; // Default to "happy" if no close match is found
             }
 
-            if (matchedMood && moodTasks[matchedMood]) {
-                activitiesHeader.textContent = `Recommendations for ${matchedMood.charAt(0).toUpperCase() + matchedMood.slice(1)} Mood:`;
-                activityCards.innerHTML = '<ul>' + moodTasks[matchedMood].map((task, index) => `
-                    <li onclick="toggleExplanation(${index})">
-                        <div class="activity-item">
-                            <i class="fas ${task.icon}"></i>
-                            <span class="activity-title">${task.title}</span>
-                            ${task.tool ? `<button class="activity-button" onclick="event.stopPropagation(); openPopup('${task.tool}')"><i class="fas fa-play"></i> Try Now</button>` : ''}
-                        </div>
-                        <div class="explanation" id="explanation-${index}">${task.explanation}</div>
-                    </li>
-                `).join('') + '</ul>';
+            // Display recommendations with the matched mood and show the user's input
+            activitiesHeader.textContent = `Recommendations for ${matchedMood.charAt(0).toUpperCase() + matchedMood.slice(1)} Mood:`;
+            userMoodDisplay.textContent = `You entered '${moodInput}'`;
+            activityCards.innerHTML = '<ul>' + moodTasks[matchedMood].map((task, index) => `
+                <li onclick="toggleExplanation(${index})">
+                    <div class="activity-item">
+                        <i class="fas ${task.icon}"></i>
+                        <span class="activity-title">${task.title}</span>
+                        ${task.tool ? `<button class="activity-button" onclick="event.stopPropagation(); openPopup('${task.tool}')"><i class="fas fa-play"></i> Try Now</button>` : ''}
+                    </div>
+                    <div class="explanation" id="explanation-${index}">${task.explanation}</div>
+                </li>
+            `).join('') + '</ul>';
 
-                activitiesSection.classList.add('show');
-                toolsContainer.style.display = 'grid';
-                moodText.value = '';
+            activitiesSection.classList.add('show');
+            toolsContainer.style.display = 'grid';
+            moodText.value = '';
 
-                gtag('event', 'mood_submitted', { mood: matchedMood });
-            } else {
-                alert('Sorry, I couldn’t find a match for that mood. Try another, like "tired," "stressed," or "sad."');
-            }
+            gtag('event', 'mood_submitted', { mood: matchedMood, user_input: moodInput });
         }
 
         // Toggle explanation visibility
@@ -1258,6 +1264,7 @@
             const volumeSlider = document.getElementById('volume-slider');
             const affirmation = document.querySelector('#soundscape-popup .affirmation');
             const errorMessage = document.getElementById('soundscape-error');
+            const specificErrorMessage = document.getElementById('soundscape-specific-error');
 
             const sounds = {
                 lightrain: 'Light Rain.mp3',
@@ -1267,15 +1274,24 @@
                 temple: 'In the Temple Garden - Aaron Kenny.mp3'
             };
 
+            const soundNames = {
+                lightrain: 'Light Rain',
+                chinese: 'Chinese Music',
+                forest: 'Forest Sounds',
+                waves: 'Ocean Waves',
+                temple: 'Temple Garden'
+            };
+
             const soundKeys = Object.keys(sounds);
             let availableSounds = [...soundKeys]; // Track available sounds
             affirmation.style.display = 'none';
             errorMessage.style.display = 'none';
+            specificErrorMessage.style.display = 'none';
             playBtn.disabled = true; // Disable play button until a sound is loaded
 
             // Update the dropdown to only show available sounds
             function updateSoundSelect() {
-                select.innerHTML = availableSounds.map(key => `<option value="${key}">${key === 'lightrain' ? 'Light Rain' : key === 'chinese' ? 'Chinese Music' : key === 'forest' ? 'Forest Sounds' : key === 'waves' ? 'Ocean Waves' : 'Temple Garden'}</option>`).join('');
+                select.innerHTML = availableSounds.map(key => `<option value="${key}">${soundNames[key]}</option>`).join('');
                 if (availableSounds.length === 0) {
                     select.disabled = true;
                     playBtn.disabled = true;
@@ -1309,6 +1325,8 @@
                 const canLoad = await canLoadAudio(audioUrl);
                 if (!canLoad) {
                     console.error(`Cannot load audio file: ${audioUrl}`);
+                    specificErrorMessage.textContent = `Failed to load ${soundNames[soundKey]}. Please try another sound.`;
+                    specificErrorMessage.style.display = 'block';
                     availableSounds = availableSounds.filter(key => key !== soundKey);
                     updateSoundSelect();
                     if (availableSounds.length > 0) {
@@ -1327,6 +1345,8 @@
                     console.error(`Error loading audio file ${audioUrl}:`, err);
                     console.log(`Audio error code: ${audio.error ? audio.error.code : 'Unknown'}`);
                     console.log(`Audio error message: ${audio.error ? audio.error.message : 'Unknown error'}`);
+                    specificErrorMessage.textContent = `Failed to load ${soundNames[soundKey]}. Please try another sound.`;
+                    specificErrorMessage.style.display = 'block';
                     availableSounds = availableSounds.filter(key => key !== soundKey);
                     updateSoundSelect();
                     if (availableSounds.length > 0) {
@@ -1338,10 +1358,12 @@
 
                 audio.oncanplaythrough = () => {
                     console.log(`Audio ${audioUrl} loaded successfully.`);
+                    specificErrorMessage.style.display = 'none';
                     playBtn.disabled = false;
                     audio.play().catch(err => {
                         console.error(`Playback error for ${audioUrl}:`, err);
-                        alert(`Error playing the audio for ${select.options[select.selectedIndex].text}. Please try again or select a different sound.`);
+                        specificErrorMessage.textContent = `Error playing ${soundNames[soundKey]}. Please try again or select a different sound.`;
+                        specificErrorMessage.style.display = 'block';
                     });
                     playBtn.innerHTML = '<i class="fas fa-pause"></i>';
                 };
@@ -1361,7 +1383,8 @@
                 if (audio.paused) {
                     audio.play().catch(err => {
                         console.error('Playback error:', err);
-                        alert('Error playing the audio. Please try again.');
+                        specificErrorMessage.textContent = `Error playing ${soundNames[select.value]}. Please try again.`;
+                        specificErrorMessage.style.display = 'block';
                     });
                     playBtn.innerHTML = '<i class="fas fa-pause"></i>';
                 } else {
@@ -1375,6 +1398,7 @@
             };
 
             select.onchange = () => {
+                specificErrorMessage.style.display = 'none';
                 loadAudio(select.value);
             };
         }
@@ -1557,29 +1581,23 @@
         function shredWorry() {
             const worryText = document.getElementById('worry-text');
             const container = document.getElementById('paper-strips-container');
-            if (!worryText.value.trim()) {
-                alert('Please write a worry to shred.');
-                return;
-            }
+            if (!worryText.value.trim()) return;
 
             worryText.classList.add('shredding');
             container.innerHTML = '';
-
-            for (let i = 0; i < 10; i++) {
+            for (let i = 0; i < 5; i++) {
                 const strip = document.createElement('div');
                 strip.style.position = 'absolute';
-                strip.style.width = '5px';
+                strip.style.width = '10px';
                 strip.style.height = '50px';
                 strip.style.background = '#ddd';
-                strip.style.left = `${i * 10}%`;
-                strip.style.animation = `shred ${0.5 + i * 0.1}s forwards`;
+                strip.style.left = `${i * 15 + 50}px`;
+                strip.style.animation = `shred 0.5s forwards ${i * 0.1}s`;
                 container.appendChild(strip);
             }
-
             setTimeout(() => {
                 worryText.value = '';
                 worryText.classList.remove('shredding');
-                container.innerHTML = '';
                 document.querySelector('#worry-popup .affirmation').style.display = 'block';
             }, 1000);
         }
@@ -1592,10 +1610,15 @@
             const progressBar = document.getElementById('color-progress');
             let timeLeft = 60;
 
-            const colors = ['#68D391', '#48BB78', '#38A169'];
+            const colors = [
+                { name: 'Soft Blue', hex: '#A3BFFA', message: 'Focus on this soft blue to calm your mind...' },
+                { name: 'Gentle Green', hex: '#B2F5EA', message: 'Focus on this gentle green to feel refreshed...' },
+                { name: 'Warm Yellow', hex: '#FEF9C3', message: 'Focus on this warm yellow to feel uplifted...' }
+            ];
+
             let colorIndex = 0;
-            square.style.backgroundColor = colors[colorIndex];
-            prompt.textContent = 'Focus on this color to calm your mind...';
+            square.style.backgroundColor = colors[colorIndex].hex;
+            prompt.textContent = colors[colorIndex].message;
 
             const colorInterval = setInterval(() => {
                 timeLeft--;
@@ -1604,7 +1627,8 @@
 
                 if (timeLeft % 20 === 0) {
                     colorIndex = (colorIndex + 1) % colors.length;
-                    square.style.backgroundColor = colors[colorIndex];
+                    square.style.backgroundColor = colors[colorIndex].hex;
+                    prompt.textContent = colors[colorIndex].message;
                 }
 
                 if (timeLeft <= 0) {
@@ -1618,15 +1642,14 @@
             }, 1000);
         }
 
-        // Save gratitude note
+        // Gratitude Note
         function saveGratitude() {
             const gratitudeText = document.getElementById('gratitude-text');
-            if (!gratitudeText.value.trim()) {
-                alert('Please write something you’re grateful for.');
-                return;
+            if (gratitudeText.value.trim()) {
+                localStorage.setItem('gratitude-' + Date.now(), gratitudeText.value);
+                gratitudeText.value = '';
+                document.querySelector('#gratitude-popup .affirmation').style.display = 'block';
             }
-            gratitudeText.value = '';
-            document.querySelector('#gratitude-popup .affirmation').style.display = 'block';
         }
     </script>
 </body>
